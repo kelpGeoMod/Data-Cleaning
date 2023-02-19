@@ -1,0 +1,60 @@
+---
+title: "depth_wrangling"
+author: "Elke Windschitl"
+date: "2023-02-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(raster)
+library(sf)
+```
+
+```{r}
+
+# Read in 30 arcseconds depth dat
+global_dat_geoid <- raster("/capstone/kelpgeomod/raw_data/depth/ETOPO_2022_v1_30s_N90W180_bed.tif")
+
+# Read in the Jessica data
+depth_dat <- raster("/capstone/kelpgeomod/raw_data/depth/depth.tif")
+# check the data plot
+plot(depth_dat)
+
+# Rean in the bounded data from data portal
+bounded_dat <- raster("/capstone/kelpgeomod/raw_data/depth/bounded_depth.tiff")
+plot(bounded_dat)
+
+```
+
+```{r}
+# Assign WGS84 CRS
+crs(depth_dat) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+
+```
+
+```{r}
+# Define AOI
+depth_sbc <- extent()
+
+```
+
+```{r}
+# Create a geometry column if needed from latitude and longitude
+```
+
+```{r}
+# Summarize the measurements so that they are on the agreed upon common temporal resolution
+
+```
+
+```{r}
+# Use spatial interpolation to get measurements on the agreed upon common spatial scale
+# Would we want auto kriging? https://www.r-bloggers.com/2013/02/automatic-spatial-interpolation-with-r-the-automap-package/
+# Aggregating option https://stackoverflow.com/questions/32278825/how-to-change-the-resolution-of-a-raster-layer-in-r
+```
+
+```{r}
+# Join data set into whichever other data sets are ready via the geometry column (or another consistent ID?)
+```
