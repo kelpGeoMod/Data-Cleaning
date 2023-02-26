@@ -127,17 +127,3 @@ tm_shape(resampled_depth) + # check the location
 terra::writeRaster(resampled_depth, "/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/SBC_depth.tif", filetype = "GTiff", overwrite = TRUE)
 ```
 
-```{r}
-# The following was done for exploratory purposes
-terra_bounded_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/bounded_depth.tiff") # read in bounded raster file with terra
-crs(terra_bounded_dat) # check that the object has crs of WGS84
-new <- project(terra_bounded_dat, "EPSG:4326") # reproject to a crs w meter units
-new <- project(terra_bounded_dat, "EPSG:9001")
-crs(new) # check crs conversion
-res(terr_bounded_dat) # check resolution in WGS84
-res(new) # check resolution in 9001 -- this appears to have a resolution of 353 m x 353 m
-plot(new)
-plot(terra_bounded_dat)
-```
-
-
