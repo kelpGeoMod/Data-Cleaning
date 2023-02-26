@@ -123,8 +123,12 @@ tm_shape(resampled_depth) + # check the location
             palette = "-BrBG")
 ```
 
+```{r}
+terra::writeRaster(resampled_depth, "/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/SBC_depth.tif", filetype = "GTiff", overwrite = TRUE)
+```
 
 ```{r}
+# The following was done for exploratory purposes
 terra_bounded_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/bounded_depth.tiff") # read in bounded raster file with terra
 crs(terra_bounded_dat) # check that the object has crs of WGS84
 new <- project(terra_bounded_dat, "EPSG:4326") # reproject to a crs w meter units
@@ -136,33 +140,4 @@ plot(new)
 plot(terra_bounded_dat)
 ```
 
-```{r}
-# Assign WGS84 CRS
 
-
-```
-
-```{r}
-# Define AOI
-
-
-```
-
-```{r}
-# Create a geometry column if needed from latitude and longitude
-```
-
-```{r}
-# Summarize the measurements so that they are on the agreed upon common temporal resolution
-
-```
-
-```{r}
-# Use spatial interpolation to get measurements on the agreed upon common spatial scale
-# Would we want auto kriging? https://www.r-bloggers.com/2013/02/automatic-spatial-interpolation-with-r-the-automap-package/
-# Aggregating option https://stackoverflow.com/questions/32278825/how-to-change-the-resolution-of-a-raster-layer-in-r
-```
-
-```{r}
-# Join data set into whichever other data sets are ready via the geometry column (or another consistent ID?)
-```
