@@ -10,33 +10,141 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(raster)
 library(sf)
+library(terra)
+library(tmap)
+library(RColorBrewer)
 ```
 
 ```{r}
+# Make an empty raster of 0.008 degree resolution
+x <- rast() # make an empty raster
+x
 
-# Read in 30 arcseconds depth dat
-global_dat_geoid <- raster("/capstone/kelpgeomod/raw_data/depth/ETOPO_2022_v1_30s_N90W180_bed.tif")
+crs(x) <- "EPSG:4326" # confirm WGS84
+crs(x)
+ext(x) <- c(-120.5, -119.45, 33.83, 34.49) # set extent
+ext(x)
+res(x) <- c(0.008, 0.008) # set resolution
+res(x)
 
-# Read in the Jessica data
-depth_dat <- raster("/capstone/kelpgeomod/raw_data/depth/depth.tif")
-# check the data plot
-plot(depth_dat)
+nrow(x) # identify how many rows we have
+ncol(x) # identify how many columns we have
+ncell(x) # identify how many total cells we have
+values(x) <- 1:ncell(x) # fill in values 1-10873 by row
 
-# Rean in the bounded data from data portal
-bounded_dat <- raster("/capstone/kelpgeomod/raw_data/depth/bounded_depth.tiff")
-plot(bounded_dat)
+tmap_mode("view")
+tm_shape(x) +
+  tm_raster(style = "cont",
+            breaks = seq(0, ncell(x), by = 1000),
+            title = "Cell ID",
+            palette = "RdPu")
 
+mask <- x
+```
+
+```{r}
+# Read in depth data
+depth_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/bounded_depth.tiff")
+
+tm_shape(depth_dat) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-2000, 1500, by = 100),
+            title = "Geoid Value",
+            palette = "-BrBG") 
+
+# Read in Geoid tiles for depth correction
+geoid1 <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/ETOPO_2022_v1_15s_N45W135_geoid.tif") # left tile
+
+tm_shape(geoid1) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-50, 50, by = 10),
+            title = "Geoid Value",
+            palette = "PRGn") 
+
+geoid2 <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/ETOPO_2022_v1_15s_N45W120_geoid.tif") # right tile
+
+tm_shape(geoid2) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-50, 50, by = 10),
+            title = "Geoid Value",
+            palette = "PRGn") 
+
+geoid_tile <- merge(geoid1, geoid2) # merge the tiles
+
+tm_shape(geoid_tile) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-50, 50, by = 10),
+            title = "Geoid Value",
+            palette = "PRGn")
+
+# Crop geoid tile to match depth extent
+geoid_tile <- crop(x = geoid_tile,
+     y = depth_dat)
+
+tm_shape(geoid_tile) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-50, 50, by = 10),
+            title = "Geoid Value",
+            palette = "PRGn")
+
+# Add the tiles together as per the user guide instructions (https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/docs/1.2%20ETOPO%202022%20User%20Guide.pdf)
+depth_wgs84 <- depth_dat + geoid_tile
+  
+tm_shape(depth_wgs84) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-2000, 1500, by = 100),
+            title = "Geoid Value",
+            palette = "-BrBG") 
+```
+
+```{r}
+# Set CRS
+crs(depth_wgs84) <- crs(mask) # set crs to mask crs
+crs(depth_wgs84) # check crs
+# Set extent
+ext(depth_wgs84) <- ext(mask) # set extent to mask extent
+ext(depth_wgs84)
+# Resample to courser resolution
+resampled_depth <- terra::resample(x = depth_wgs84,
+                                   y = mask,
+                                   method = "bilinear")
+# Confirm integrity of raster
+crs(resampled_depth)
+ext(resampled_depth)
+res(resampled_depth)
+nrow(resampled_depth)
+ncol(resampled_depth)
+plot(resampled_depth)
+
+tm_shape(resampled_depth) + # check the location
+  tm_raster(style = "cont",
+            breaks = seq(-2000, 1500, by = 100),
+            title = "Geoid Value",
+            palette = "-BrBG")
+```
+
+
+```{r}
+terra_bounded_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/bounded_depth.tiff") # read in bounded raster file with terra
+crs(terra_bounded_dat) # check that the object has crs of WGS84
+new <- project(terra_bounded_dat, "EPSG:4326") # reproject to a crs w meter units
+new <- project(terra_bounded_dat, "EPSG:9001")
+crs(new) # check crs conversion
+res(terr_bounded_dat) # check resolution in WGS84
+res(new) # check resolution in 9001 -- this appears to have a resolution of 353 m x 353 m
+plot(new)
+plot(terra_bounded_dat)
 ```
 
 ```{r}
 # Assign WGS84 CRS
-crs(depth_dat) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+
 
 ```
 
 ```{r}
 # Define AOI
-depth_sbc <- extent()
+
 
 ```
 
