@@ -1,3 +1,4 @@
+
 ## Reading and Loading the SST Data
 
 Load the libraries 
@@ -7,8 +8,10 @@ library(ncdf4)
 library(tmap)
 library(raster)
 library(tictoc)
-library(beepr)
 library(terra)
+
+library(dplyr)
+library(stringr)
 ```
 
 
@@ -22,9 +25,6 @@ extent(x) <- extent(-120.5, -119.45, 33.83, 34.49) # set extent
 res(x) <- c(0.008, 0.008) # set resolution
 values(x) <- 1:ncell(x) # fill in values 1-10873 by row
 
-
-
-
 ```
 
 
@@ -34,27 +34,98 @@ file <- nc_open("/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4/20230101090000-JP
 sst <- ncvar_get(file, "analysed_sst")
 sst_rast <- raster(sst)
 plot(sst_rast)
+
+
+# Flip the raster by 90 degrees to the left
+flipped_data <- t(flip(sst_rast, 1))
+
+plot(flipped_data)
+
 ```
 
-Modify the SST Raster to the mask
+
 ```{r}
-# Set extent, CRS, and resolution
-extent(sst_rast) <- extent(x)
-crs(sst_rast) <- crs(x)
-res(sst_rast) <- res(x)
 
-# Resample the mask to match the resolution of the raster
-mask_resampled <- resample(x, sst_rast, method = "bilinear")
+# Set the extent of the raster to match the mask extent
+raster_data <- setExtent(flipped_data, extent(x))
 
-#Mask
-sst_masked <- mask(sst_rast, x)
+# Resample the raster to match the mask resolution
+resampled_data <- resample(raster_data, x, method="bilinear")
+
+# Apply the mask to the resampled raster
+sst_masked <- mask(resampled_data, x)
 
 #Check dimentions
 dim(sst_masked)
 
-#Plot
 plot(sst_masked)
 
 ```
 
+# Creating a For Loop for the raster stack
 
+Set up the directoty path where the files are located:
+```{r}
+data_dir <- "/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4"
+```
+
+
+Create a list of all the files in the directory:
+
+```{r}
+file_list <- list.files(data_dir, full.names=TRUE)
+
+```
+
+Crate a Data Frame that contains the information from the files names and creates a new column in a data frame:
+
+```{r}
+
+file_df <- data.frame(file_name=file_list) %>%
+  mutate(date=as.Date(str_extract(file_name, "\\d{8}"), format="%Y%m%d"))
+
+#Filter for the desired dates
+start_date <- as.Date("2014-01-01")
+end_date <- as.Date("2022-12-31")
+
+file_df <- filter(file_df, date >= start_date & date <= end_date)
+
+
+```
+
+Create a function that reads in each file and convert it to a raster:
+
+```{r}
+
+ncdf_to_raster <- function(nc_file) {
+  file <- nc_open(nc_file)
+  sst <- ncvar_get(file, "analysed_sst")
+  sst_rast <- raster(sst)
+  
+  # Flip the raster by 90 degrees to the left
+  flipped_data <- t(flip(sst_rast, 1))
+  
+  # Set the extent of the raster to match the mask extent
+  raster_data <- setExtent(flipped_data, extent(x))
+  
+  # Resample the raster to match the mask resolution
+  resampled_data <- resample(raster_data, x, method="bilinear")
+  
+  # Apply the mask to the resampled raster
+  sst_masked <- mask(resampled_data, x)
+  
+  return(sst_masked)
+}
+
+```
+
+
+Use your function to apply the mask and conditions to each file in the data frame and create a list of rasters
+
+```{r}
+
+tic()
+raster_list <- lapply(file_df$file_name, ncdf_to_raster)
+toc()
+
+```
