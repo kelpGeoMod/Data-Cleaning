@@ -1,0 +1,70 @@
+## Reading and Loading the SST Data
+
+Load the libraries 
+```{r}
+library(httr)
+library(ncdf4)
+library(tmap)
+library(raster)
+library(tictoc)
+library(terra)
+```
+
+
+Make a mask
+```{r}
+# Make an empty raster of 0.008 degree resolution
+x <- raster() # make an empty raster
+
+crs(x) <- CRS("+proj=longlat +datum=WGS84") # Set the CRS
+extent(x) <- extent(-120.5, -119.45, 33.83, 34.49) # set extent
+res(x) <- c(0.008, 0.008) # set resolution
+values(x) <- 1:ncell(x) # fill in values 1-10873 by row
+
+```
+
+
+Read one image
+```{r}
+file <- nc_open("/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4/20230101090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1.dap.nc4")
+sst <- ncvar_get(file, "analysed_sst")
+sst_rast <- raster(sst)
+plot(sst_rast)
+
+
+# Flip the raster by 90 degrees to the left
+flipped_data <- t(flip(sst_rast, 1))
+
+plot(flipped_data)
+
+```
+
+
+```{r}
+
+# Set the extent of the raster to match the mask extent
+raster_data <- setExtent(flipped_data, extent(x))
+
+# Resample the raster to match the mask resolution
+resampled_data <- resample(raster_data, x, method="bilinear")
+
+# Apply the mask to the resampled raster
+sst_masked <- mask(resampled_data, x)
+
+#Check dimentions
+dim(sst_masked)
+
+plot(sst_masked)
+
+```
+
+
+
+
+
+
+
+
+
+
+
