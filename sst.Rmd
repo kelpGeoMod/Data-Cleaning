@@ -1,0 +1,287 @@
+
+ADD SOME META DATA INFO 
+
+
+SST NASA, ETC
+
+
+## Reading and Loading the SST Data
+
+Load the libraries 
+```{r}
+library(httr)
+library(ncdf4)
+library(tmap)
+library(raster)
+library(tictoc)
+library(terra)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+library(gganimate)
+library(gifski)
+
+```
+
+
+Make a mask
+```{r}
+# Make an empty raster of 0.008 degree resolution
+x <- raster() # make an empty raster
+
+crs(x) <- CRS("+proj=longlat +datum=WGS84") # Set the CRS
+extent(x) <- extent(-123.32, -115.7, 30.59, 36.08) # set with the new extent
+res(x) <- c(0.008, 0.008) # set resolution
+values(x) <- 1:ncell(x) # fill in values 1-10873 by row
+
+
+```
+
+
+
+Read one image for testing
+```{r}
+file <- nc_open("/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4/20230101090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1.dap.nc4")
+sst <- ncvar_get(file, "analysed_sst")
+sst_rast <- raster(sst)
+plot(sst_rast)
+
+
+# Flip the raster by 90 degrees to the left
+flipped_data <- t(flip(sst_rast, 1))
+
+plot(flipped_data)
+
+```
+
+check the image info and use the mask
+```{r}
+
+# Set the extent of the raster to match the mask extent
+raster_data <- setExtent(flipped_data, extent(x))
+
+# Resample the raster to match the mask resolution
+resampled_data <- resample(raster_data, x, method="bilinear")
+
+# Apply the mask to the resampled raster
+sst_masked <- mask(resampled_data, x)
+
+#Check dimentions
+dim(sst_masked)
+
+plot(sst_masked)
+
+```
+
+
+
+
+# Creating a For Loop for the raster stack
+Set up the directoty path where the files are located:
+```{r}
+data_dir <- "/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4"
+```
+
+Create a list of all the files in the directory:
+```{r}
+file_list <- list.files(data_dir, full.names=TRUE)
+```
+
+Crate a Data Frame that contains the information from the files names and creates a new column in a data frame:
+```{r}
+#Filter for the desired dates
+start_date <- as.Date("2014-01-01")
+end_date <- as.Date("2022-12-31")
+
+file_df <- data.frame(file_name=file_list) %>%
+  mutate(date=as.Date(str_extract(file_name, "\\d{8}"), format="%Y%m%d")) %>% 
+  filter(date >= start_date & date <= end_date)
+
+```
+
+Create a function that reads in each file and convert it to a raster:
+
+```{r}
+
+ncdf_to_raster <- function(nc_file) {
+  file <- nc_open(nc_file)
+  sst <- ncvar_get(file, "analysed_sst")
+  sst_rast <- raster(sst)
+  
+  # Flip the raster by 90 degrees to the left
+  flipped_data <- t(flip(sst_rast, 1))
+  
+  # Set the extent of the raster to match the mask extent
+  raster_data <- setExtent(flipped_data, extent(x))
+  
+  # Resample the raster to match the mask resolution
+  resampled_data <- resample(raster_data, x, method="bilinear")
+  
+  # Apply the mask to the resampled raster
+  sst_masked <- mask(resampled_data, x)
+  
+  nc_close(file) # Close the netCDF file
+  
+  return(sst_masked)
+}
+
+```
+
+Do a test for January 2014 
+```{r}
+
+# Subset file_df to include only files from January 2014
+jan_2014_files <- file_df %>% 
+  filter(date < '2014-02-01')
+
+# Use lapply() to create a list of rasters for January 2014
+raster_list <- lapply(jan_2014_files$file_name, ncdf_to_raster)
+
+# Convert to RasterStack object
+jan_raster_stack <- stack(raster_list)
+
+# Calculate the mean of all layers
+jan_raster_mean <- calc(jan_raster_stack, mean)
+
+plot(jan_raster_mean)
+
+```
+
+
+## Create a function that creates: 
+a) A Data Frame with the year and month we are interested on
+b) Apply the ncdf_to_raster function that reads in the image and converts it to a raster file
+c) Stack all images from one month and executes the mean per month
+```{r}
+
+create_raster_stack <- function(year, month) {
+  
+  # Subset file_df to include only files from the given year and month
+  files <- file_df %>% 
+    filter(year(date) == year, month(date) == month)
+  
+  # Use lapply() to create a list of rasters for the given year and month
+  raster_list <- lapply(files$file_name, ncdf_to_raster)
+  
+  # Convert to RasterStack object
+  raster_stack <- stack(raster_list)
+  
+  # Calculate the mean of all layers
+  raster_mean <- calc(raster_stack, mean)
+  
+  return(raster_mean)
+  
+}
+
+
+```
+
+
+```{r}
+
+tic()
+create_raster_stack(2017, 8)
+toc()
+
+```
+
+```{r}
+# Create empty list to store raster stacks
+raster_stack_list <- list()
+
+tic()
+# Loop through all months from January 2014 to December 2022
+for (year in 2014:2015) {
+  for (month in 1:12) {
+    
+    # Create raster stack for current year and month
+    raster_stack <- create_raster_stack(year, month)
+    
+    # Add raster stack to list
+    raster_stack_list[[length(raster_stack_list) + 1]] <- raster_stack
+    
+  }
+}
+
+toc()
+
+# Convert list of raster stacks to RasterBrick object
+raster_brick <- brick(raster_stack_list)
+
+class(raster_brick)
+
+raster_brick$X2014.Feb
+
+```
+
+
+```{r}
+# Get current names of layers in raster_brick
+current_names <- names(raster_brick)
+
+# Create vector of new names in desired format
+new_names <- paste0(month.abb, "-", rep(2014:2015, each=12))
+
+# Rename layers in raster_brick with new names
+names(raster_brick) <- new_names
+
+```
+
+
+```{r}
+# Create vector of month names
+month_names <- month.abb
+
+# Create vector of year-month strings
+year_month <- expand.grid(year=2014:2015, month=1:12) %>% 
+  mutate(month_name = month_names[month])
+
+# Set names of RasterBrick
+names(raster_brick) <- paste0(year_month$year, "-", year_month$month_name)
+```
+
+
+Create a gif
+
+```{r}
+library(animation)
+
+# Function to create the plot for each frame
+plot_raster <- function(x, name) {
+  plot(x, main = "", col = colorRampPalette(c("blue", "white", "red"))(100), 
+       xlim = extent(-180, 180, -90, 90))
+  title(main = paste0(format(name, "%b-%Y"), " - ", names(x)), 
+        font.main = 1, cex.main = 1.5)
+}
+
+# Create the GIF
+saveGIF({
+  for (i in 1:length(raster_stack_list)) {
+    plot_raster(raster_stack_list[[i]], names(raster_stack_list[[i]]))
+  }
+}, movie.name = "raster_stack.gif", interval = 0.5, ani.width = 800, ani.height = 400)
+
+
+```
+
+
+
+```{r}
+library(gifski)
+library(animation)
+
+# Set names of layers in raster brick
+names(raster_brick) <- format(as.Date(paste0("01-", names(raster_brick)), format = "%d-%b-%Y"), "%b-%Y")
+
+# Create animation
+ani.options(interval = 0.2, ani.width = 600, ani.height = 500)
+saveGIF({
+  for(i in 1:nlayers(raster_brick)) {
+    plot(raster_brick[[i]], main = names(raster_brick)[i], legend = FALSE, col = rev(terrain.colors(10)))
+  }
+}, movie.name = "kelp_growth.gif", renderer = gifski_renderer())
+
+```
+
+
