@@ -7,6 +7,7 @@ library(ncdf4)
 library(tmap)
 library(raster)
 library(tictoc)
+library(beepr)
 library(terra)
 ```
 
@@ -21,6 +22,9 @@ extent(x) <- extent(-120.5, -119.45, 33.83, 34.49) # set extent
 res(x) <- c(0.008, 0.008) # set resolution
 values(x) <- 1:ncell(x) # fill in values 1-10873 by row
 
+
+
+
 ```
 
 
@@ -30,41 +34,27 @@ file <- nc_open("/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4/20230101090000-JP
 sst <- ncvar_get(file, "analysed_sst")
 sst_rast <- raster(sst)
 plot(sst_rast)
-
-
-# Flip the raster by 90 degrees to the left
-flipped_data <- t(flip(sst_rast, 1))
-
-plot(flipped_data)
-
 ```
 
-
+Modify the SST Raster to the mask
 ```{r}
+# Set extent, CRS, and resolution
+extent(sst_rast) <- extent(x)
+crs(sst_rast) <- crs(x)
+res(sst_rast) <- res(x)
 
-# Set the extent of the raster to match the mask extent
-raster_data <- setExtent(flipped_data, extent(x))
+# Resample the mask to match the resolution of the raster
+mask_resampled <- resample(x, sst_rast, method = "bilinear")
 
-# Resample the raster to match the mask resolution
-resampled_data <- resample(raster_data, x, method="bilinear")
-
-# Apply the mask to the resampled raster
-sst_masked <- mask(resampled_data, x)
+#Mask
+sst_masked <- mask(sst_rast, x)
 
 #Check dimentions
 dim(sst_masked)
 
+#Plot
 plot(sst_masked)
 
 ```
-
-
-
-
-
-
-
-
-
 
 
