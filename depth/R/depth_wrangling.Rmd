@@ -45,6 +45,7 @@ library(RColorBrewer)
 ```{r}
 # Read in mask
 mask <- terra::rast("mask_rast.tif")
+plot(mask)
 ```
 
 ```{r}
@@ -54,7 +55,7 @@ depth_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/d
 tm_shape(depth_dat) + # check the location
   tm_raster(style = "cont",
             breaks = seq(-2000, 1500, by = 100),
-            title = "Geoid Value",
+            title = "depth",
             palette = "-BrBG") 
 
 # Read in Geoid tiles for depth correction
@@ -106,13 +107,19 @@ tm_shape(depth_wgs84) + # check the location
 # Set CRS
 crs(depth_wgs84) <- crs(mask) # set crs to mask crs
 crs(depth_wgs84) # check crs
-# Set extent
-ext(depth_wgs84) <- ext(mask) # set extent to mask extent
-ext(depth_wgs84)
+# Crop to mask
+depth_wgs84 <- crop(x = depth_wgs84,
+                         y = mask) # crop to set extent to mask extent
+#ext(depth_wgs84)
 # Resample to courser resolution
 resampled_depth <- terra::resample(x = depth_wgs84,
                                    y = mask,
                                    method = "bilinear")
+
+# mask to remove land
+resampled_depth <- mask(resampled_depth, mask)
+plot(resampled_depth)
+
 # Confirm integrity of raster
 crs(resampled_depth)
 ext(resampled_depth)
@@ -131,4 +138,26 @@ tm_shape(resampled_depth) + # check the location
 ```{r}
 terra::writeRaster(resampled_depth, "/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/SBC_depth.tif", filetype = "GTiff", overwrite = TRUE)
 ```
+
+```{r}
+boundaries <- st_read("/Users/elkewindschitl/Downloads/California_County_Boundaries/cnty19_1.shp") %>% filter(COUNTY_ABB == "SBA")
+
+boundaries <- st_transform(x = boundaries, crs = 4326)
+
+tmap_mode("view")
+tm_shape(resampled_depth) + # check the location
+  tm_raster(style = "cont",
+            breaks = c(-2000, -1000, -500, -200, -100, -60, -40, -20, 0),
+            title = "Depth (m)",
+            palette = "Blues") +
+  tm_layout(legend.outside = TRUE, # Moving the legend
+            main.title = "Bathymetry of the Santa Barbara Channel",
+            main.title.size = 0.8) +
+  tm_shape(boundaries) +
+  tm_polygons() +
+  tm_grid(x = c(-120.4, -120.2, -120, -119.8, -119.6),
+          y = c(34.0, 34.2, 34.4),
+    alpha = 0.3) 
+```
+
 
