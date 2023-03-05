@@ -50,7 +50,7 @@ plot(mask)
 
 ```{r}
 # Read in depth data
-depth_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/bounded_depth.tiff")
+depth_dat <- terra::rast("/Users/elkewindschitl/Documents/MEDS/kelpGeoMod/data/depth/depth_long.tiff")
 
 tm_shape(depth_dat) + # check the location
   tm_raster(style = "cont",
@@ -133,6 +133,7 @@ tm_shape(resampled_depth) + # check the location
             breaks = seq(-2000, 1500, by = 100),
             title = "Geoid Value",
             palette = "-BrBG")
+plot(resampled_depth)
 ```
 
 ```{r}
@@ -140,7 +141,7 @@ terra::writeRaster(resampled_depth, "/Users/elkewindschitl/Documents/MEDS/kelpGe
 ```
 
 ```{r}
-boundaries <- st_read("/Users/elkewindschitl/Downloads/California_County_Boundaries/cnty19_1.shp") %>% filter(COUNTY_ABB == "SBA")
+boundaries <- st_read("/Users/elkewindschitl/Downloads/California_County_Boundaries/cnty19_1.shp") 
 
 boundaries <- st_transform(x = boundaries, crs = 4326)
 

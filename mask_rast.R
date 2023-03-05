@@ -28,7 +28,7 @@ tm_shape(x) +
 
 mask <- x
 
-boundaries <- st_read("/Users/elkewindschitl/Downloads/California_County_Boundaries/cnty19_1.shp") %>% filter(COUNTY_ABB == "SBA")
+boundaries <- st_read("/Users/elkewindschitl/Downloads/California_County_Boundaries/cnty19_1.shp") 
 
 boundaries <- st_transform(x = boundaries, crs = 4326)
 
