@@ -1,4 +1,10 @@
 
+ADD SOME META DATA INFO 
+
+
+SST NASA, ETC
+
+
 ## Reading and Loading the SST Data
 
 Load the libraries 
@@ -9,9 +15,12 @@ library(tmap)
 library(raster)
 library(tictoc)
 library(terra)
-
 library(dplyr)
 library(stringr)
+library(lubridate)
+library(beepr)
+
+
 ```
 
 
@@ -21,14 +30,16 @@ Make a mask
 x <- raster() # make an empty raster
 
 crs(x) <- CRS("+proj=longlat +datum=WGS84") # Set the CRS
-extent(x) <- extent(-120.5, -119.45, 33.83, 34.49) # set extent
+extent(x) <- extent(-123.32, -115.7, 30.59, 36.08) # set with the new extent
 res(x) <- c(0.008, 0.008) # set resolution
 values(x) <- 1:ncell(x) # fill in values 1-10873 by row
+
 
 ```
 
 
-Read one image
+
+Read one image for testing
 ```{r}
 file <- nc_open("/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4/20230101090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1.dap.nc4")
 sst <- ncvar_get(file, "analysed_sst")
@@ -43,7 +54,7 @@ plot(flipped_data)
 
 ```
 
-
+check the image info and use the mask
 ```{r}
 
 # Set the extent of the raster to match the mask extent
@@ -62,34 +73,29 @@ plot(sst_masked)
 
 ```
 
-# Creating a For Loop for the raster stack
 
+
+
+# Creating a For Loop for the raster stack
 Set up the directoty path where the files are located:
 ```{r}
 data_dir <- "/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4"
 ```
 
-
 Create a list of all the files in the directory:
-
 ```{r}
 file_list <- list.files(data_dir, full.names=TRUE)
-
 ```
 
 Crate a Data Frame that contains the information from the files names and creates a new column in a data frame:
-
 ```{r}
-
-file_df <- data.frame(file_name=file_list) %>%
-  mutate(date=as.Date(str_extract(file_name, "\\d{8}"), format="%Y%m%d"))
-
 #Filter for the desired dates
 start_date <- as.Date("2014-01-01")
 end_date <- as.Date("2022-12-31")
 
-file_df <- filter(file_df, date >= start_date & date <= end_date)
-
+file_df <- data.frame(file_name=file_list) %>%
+  mutate(date=as.Date(str_extract(file_name, "\\d{8}"), format="%Y%m%d")) %>% 
+  filter(date >= start_date & date <= end_date)
 
 ```
 
@@ -114,18 +120,99 @@ ncdf_to_raster <- function(nc_file) {
   # Apply the mask to the resampled raster
   sst_masked <- mask(resampled_data, x)
   
+  nc_close(file) # Close the netCDF file
+  
   return(sst_masked)
 }
 
 ```
 
+Do a test for January 2014 
+```{r}
 
-Use your function to apply the mask and conditions to each file in the data frame and create a list of rasters
+# Subset file_df to include only files from January 2014
+jan_2014_files <- file_df %>% 
+  filter(date < '2014-02-01')
+
+# Use lapply() to create a list of rasters for January 2014
+raster_list <- lapply(jan_2014_files$file_name, ncdf_to_raster)
+
+# Convert to RasterStack object
+jan_raster_stack <- stack(raster_list)
+
+# Calculate the mean of all layers
+jan_raster_mean <- calc(jan_raster_stack, mean)
+
+plot(jan_raster_mean)
+
+```
+
+
+## Create a function that creates: 
+a) A Data Frame with the year and month we are interested on
+b) Apply the ncdf_to_raster function that reads in the image and converts it to a raster file
+c) Stack all images from one month and executes the mean per month
+```{r}
+
+create_raster_stack <- function(year, month) {
+  
+  # Subset file_df to include only files from the given year and month
+  files <- file_df %>% 
+    filter(year(date) == year, month(date) == month)
+  
+  # Use lapply() to create a list of rasters for the given year and month
+  raster_list <- lapply(files$file_name, ncdf_to_raster)
+  
+  # Convert to RasterStack object
+  raster_stack <- stack(raster_list)
+  
+  # Calculate the mean of all layers
+  raster_mean <- calc(raster_stack, mean)
+  
+  return(raster_mean)
+  
+}
+
+
+```
+
 
 ```{r}
 
 tic()
-raster_list <- lapply(file_df$file_name, ncdf_to_raster)
+create_raster_stack(2017, 8)
 toc()
 
 ```
+
+```{r}
+# Create empty list to store raster stacks
+raster_stack_list <- list()
+
+tic()
+# Loop through all months from January 2014 to December 2022
+for (year in 2014:2022) {
+  for (month in 1:12) {
+    
+    # Create raster stack for current year and month
+    raster_stack <- create_raster_stack(year, month)
+    
+    # Add raster stack to list
+    raster_stack_list[[length(raster_stack_list) + 1]] <- raster_stack
+    
+  }
+}
+
+toc()
+
+tic()
+# Convert list of raster stacks to RasterBrick object
+raster_brick <- brick(raster_stack_list)
+
+toc()
+
+```
+
+
+
+
