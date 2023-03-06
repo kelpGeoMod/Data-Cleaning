@@ -36,8 +36,6 @@ values(x) <- 1:ncell(x) # fill in values 1-10873 by row
 
 ```
 
-
-
 Read one image for testing
 ```{r}
 file <- nc_open("/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4/20230101090000-JPL-L4_GHRSST-SSTfnd-MUR-GLOB-v02.0-fv04.1.dap.nc4")
@@ -53,7 +51,7 @@ plot(flipped_data)
 
 ```
 
-check the image info and use the mask
+Check the image info and use the mask
 ```{r}
 
 # Set the extent of the raster to match the mask extent
@@ -184,6 +182,11 @@ toc()
 
 ```
 
+## Create a bi for loop that:
+a) Uses the function `create_raster_stack` to build a raster mean per month
+b) Appends that new raster to a list 
+c) Stack all rasters into a brick
+
 ```{r}
 # Create empty list to store raster stacks
 raster_stack_list <- list()
@@ -211,7 +214,7 @@ class(raster_brick)
 
 ```
 
-
+Create the monthly names for each raster monthly mean
 ```{r}
 # Get current names of layers in raster_brick
 current_names <- names(raster_brick)
@@ -242,9 +245,82 @@ saveGIF({
     title(main = format(paste0(names(raster_brick)[i])), 
           font.main = 1, cex.main = 1.5)
   }
-}, movie.name = "raster_brick_names.gif", interval = 0.5, ani.width = 800, ani.height = 400)
+}, movie.name = "raster_brick_monthly.gif", interval = 0.5, ani.width = 800, ani.height = 400)
 
 
 ```
+
+
+Quarterly base
+```{r}
+
+create_raster_stack_quarterly <- function(year, quarter) {
+  
+  # Define the start and end months for the given quarter
+  start_month <- (quarter - 1) * 3 + 1
+  end_month <- quarter * 3
+  
+  # Subset file_df to include only files from the given year and quarter
+  files <- file_df %>% 
+    filter(year(date) == year & month(date) >= start_month & month(date) <= end_month)
+  
+  # Use lapply() to create a list of rasters for the given year and quarter
+  raster_list <- lapply(files$file_name, ncdf_to_raster)
+  
+  # Convert to RasterStack object
+  raster_stack <- stack(raster_list)
+  
+  # Calculate the mean of all layers
+  raster_mean <- calc(raster_stack, mean)
+  
+  return(raster_mean)
+  
+}
+```
+
+```{r}
+create_raster_stack_quarterly(2015, 2)
+```
+
+
+```{r}
+# Create empty list to store raster stacks
+raster_quarter_stack_list <- list()
+
+tic()
+# Loop through all quarters from Q1 2014 to Q4 2022
+for (year in 2014:2022) {
+  for (quarter in 1:4) {
+    
+    # Create raster stack for current year and quarter
+    raster_stack <- create_raster_stack_quarterly(year, quarter)
+    
+    # Add raster stack to list
+    raster_quarter_stack_list[[length(raster_stack_list) + 1]] <- raster_stack
+    
+  }
+}
+
+toc()
+
+# Convert list of raster stacks to RasterBrick object
+raster_quarter_brick <- brick(raster_quarter_stack_list)
+
+```
+
+
+Save the raster bricks
+```{r}
+
+# Write RasterBrick Quarter object to file
+writeRaster(raster_quarter_brick, filename = "/capstone/kelpgeomod/intermediate_data/sst/sst_quarter_raster", format = "GTiff")
+
+
+# Write RasterBrick Monthly object to file
+writeRaster(raster_brick, filename = "/capstone/kelpgeomod/intermediate_data/sst/sst_monthly_raster", format = "GTiff")
+
+```
+
+
 
 
