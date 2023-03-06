@@ -1,7 +1,6 @@
 
 ADD SOME META DATA INFO 
 
-
 SST NASA, ETC
 
 
@@ -20,7 +19,6 @@ library(stringr)
 library(lubridate)
 library(ggplot2)
 library(gganimate)
-library(gifski)
 
 ```
 
@@ -75,9 +73,9 @@ plot(sst_masked)
 ```
 
 
-
-
 # Creating a For Loop for the raster stack
+
+
 Set up the directoty path where the files are located:
 ```{r}
 data_dir <- "/capstone/kelpgeomod/raw_data/SST/GRHSST_lvl4"
@@ -192,7 +190,7 @@ raster_stack_list <- list()
 
 tic()
 # Loop through all months from January 2014 to December 2022
-for (year in 2014) {
+for (year in 2014:2022) {
   for (month in 1:12) {
     
     # Create raster stack for current year and month
@@ -219,7 +217,7 @@ class(raster_brick)
 current_names <- names(raster_brick)
 
 # Create vector of new names in desired format
-new_names <- paste0(month.abb, "-", rep(2014, each=12))
+new_names <- paste0(month.abb, "-", rep(2014:2022, each=12))
 
 # Rename layers in raster_brick with new names
 names(raster_brick) <- new_names
