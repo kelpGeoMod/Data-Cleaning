@@ -48,5 +48,5 @@ tm_shape(mask) +
   tm_raster(palette = colors1,
             legend.show = FALSE)
 
-terra::writeRaster(mask, "mask_rast.tif", filetype = "GTiff", overwrite = TRUE)
+terra::writeRaster(mask, "mask/mask_rast.tif", filetype = "GTiff", overwrite = TRUE)
 
