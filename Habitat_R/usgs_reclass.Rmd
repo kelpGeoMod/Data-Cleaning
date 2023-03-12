@@ -1,0 +1,57 @@
+---
+title: "reclassify_usgs"
+author: "Jessica French"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The USGS files have better coverage along the coast but have a more complicated classification scheme compared the the rasters from the California mapping project. In this notebook I am going to try and see what classifications in the USGS shape files overlap with the rocky areas in the shape files in order to reclassify.
+
+```{r label = "read in libraries"}
+library(terra)
+library(tmap)
+library(sf)
+library(tidyverse)
+```
+
+```{r label = "set working directory"}
+setwd("/Users/jfrench/Documents/MEDS/Capstone/DATA/Benthic_Habitat_2")
+```
+
+Lets start small scale, the sbc f g an h files overlap with carpenteria, ventura, santa barbara offshore files from the usgs. 
+
+Start by reading in both sets of files
+
+```{r label = "read in sbc f, g, h}
+sbc_f_2msub <- rast("Habitat_tiffs/sbc_f_2msub.tif")
+sbc_g_2msub <- rast("Habitat_tiffs/sbc_g_2msub.tif")
+sbc_h_2msub <- rast("Habitat_tiffs/sbc_h_2msub.tif")
+```
+
+```{r label = "read in carpenteria, ventura, santa barbara"}
+carpenteria <- st_read("Santa Barbara Channel _coastline/Carpinteria_Loon/Habitat_OffshoreCarpinteria/Habitat_OffshoreCarpinteria.shp") |> st_make_valid() |> 
+  filter(Ind_ID == "h")
+ventura <- st_read("Habitat_OffshoreVentura/Habitat_OffshoreVentura.shp") |> 
+  st_make_valid() |> 
+  filter(Ind_ID == "h")
+santa_barbara <- st_read("Habitat_OffshoreSantaBarbara/Habitat_OffshoreSantaBarbara.shp") |>
+  st_make_valid() |> 
+  filter(Ind_ID == "h")
+```
+
+```{r label = "tmap"}
+tmap_mode(mode = "view")
+
+tm_shape(ventura) +
+  tm_polygons(col = "Hab_Type", legend.show = FALSE) +
+  tm_shape(carpenteria) +
+  tm_polygons(col = "Hab_Type", legend.show = FALSE) +
+  tm_shape(santa_barbara) +
+  tm_polygons(col = "Hab_Type")
+```
+
+Whelp, as it turns out there is a column that simplifies the substrate to hard, soft, or mixed which matches two other files we have. 

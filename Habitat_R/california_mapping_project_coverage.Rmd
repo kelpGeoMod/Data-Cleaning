@@ -1,0 +1,71 @@
+---
+title: "substrate"
+author: "Jessica French"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r label = "read in packages"}
+# read in packages
+library(terra)
+library(tmap)
+library(sf)
+library(tidyverse)
+```
+
+```{r label = "set working directory"}
+setwd("/Users/jfrench/Documents/MEDS/Capstone/DATA/Benthic_Habitat_2/Habitat_tiffs")
+```
+
+
+```{r label = "read in files from california mapping project"}
+# read in all files in the habitat tif folder
+santacruz_rosa_cp_2msub <- rast("santacruz_rosa_cp_2msub.tif")
+santacruz_rosa_gi_2msub <- rast("santacruz_rosa_gi_2msub.tif")
+santacruz_rosa_scpt_2msub <- rast("santacruz_rosa_scpt_2msub.tif")
+sbc_f_2msub <- rast("sbc_f_2msub.tif")
+sbc_g_2msub <- rast("sbc_g_2msub.tif")
+sbc_h_2msub <- rast("sbc_h_2msub.tif")
+h11950_5msub <- rast("h11950_5msub.tif")
+h11951_5msub <- rast("h11951_5msub.tif")
+h11952_5msub <- rast("h11952_5msub.tif")
+gi_5msub <- rast("gi_5msub.tif")
+sp_3mrock <- rast("sp_3mrock.tif")
+#cp_3mrock <- rast("cp_3mrock.tif")
+
+```
+
+```{r label = "create tmap of layers above"}
+
+# 0 is sediment and 1 is rock 
+tmap_mode(mode = "view")
+
+tm_shape(santacruz_rosa_cp_2msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(santacruz_rosa_gi_2msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(santacruz_rosa_scpt_2msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(sbc_f_2msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(sbc_g_2msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(sbc_h_2msub)  +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(h11950_5msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(h11951_5msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(h11952_5msub) +
+  tm_raster(legend.show = FALSE) +
+  tm_shape(gi_5msub) +
+  tm_raster() +
+  tm_shape(sp_3mrock) +
+  tm_raster() +
+
+```
+
